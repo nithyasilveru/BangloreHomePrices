@@ -1,32 +1,32 @@
 from flask import Flask, request, jsonify
-import pickle
-import numpy as np
+import util
 
 app = Flask(__name__)
 
-# Load model and column data
-model = pickle.load(open("model/banglore_home_prices_model.pickle", "rb"))
-columns = pickle.load(open("model/columns.pickle", "rb"))  # or JSON if you're using .json
-locations = columns[3:]  # first 3 are sqft, bath, bhk
+@app.route('/get_location_names', methods=['GET'])
+def get_location_names():
+    response = jsonify({
+        'locations': util.get_location_names()
+    })
+    response.headers.add('Access-Control-Allow-Origin', '*')
 
-@app.route('/predict', methods=['POST'])
-def predict():
-    data = request.get_json()
-    sqft = float(data['sqft'])
-    bath = int(data['bath'])
-    bhk = int(data['bhk'])
-    location = data['location']
+    return response
 
-    x = np.zeros(len(columns))
-    x[0] = sqft
-    x[1] = bath
-    x[2] = bhk
-    if location in locations:
-        loc_index = columns.index(location)
-        x[loc_index] = 1
+@app.route('/predict_home_price', methods=['GET', 'POST'])
+def predict_home_price():
+    total_sqft = float(request.form['total_sqft'])
+    location = request.form['location']
+    bhk = int(request.form['bhk'])
+    bath = int(request.form['bath'])
 
-    prediction = model.predict([x])[0]
-    return jsonify({'estimated_price_lakhs': round(prediction, 2)})
+    response = jsonify({
+        'estimated_price': util.get_estimated_price(location,total_sqft,bhk,bath)
+    })
+    response.headers.add('Access-Control-Allow-Origin', '*')
 
-if __name__ == '__main__':
-    app.run(debug=True)
+    return response
+
+if __name__ == "__main__":
+    print("Starting Python Flask Server For Home Price Prediction...")
+    util.load_saved_artifacts()
+    app.run()
